@@ -1,5 +1,5 @@
 #include <cstdlib>
-#include <experimental/random>
+// #include <experimental/random>
 #include <random>
 #include "utils.h"
 
@@ -20,11 +20,12 @@ void generateInitialCentroids(int Nc, int D, double* initial_centroids){
 
 // Randomly generates N data points around Nc centroids
 void generateInitialData(int N, int Nc, int D, double* data, double* initial_centroids, double stddev, unsigned int seed){
-    std::default_random_engine generator(seed);
-    std::normal_distribution noise{0.0, stddev}; //Normal distribution around 0.0 with standard deviation of 0.5
+    std::mt19937 generator(seed);
+    std::normal_distribution<double> noise{0.0, stddev};   
+    std::uniform_int_distribution<> dist(0, Nc-1);
 
     for(int i=0; i<N; i++){
-        int random_centroid_id = std::experimental::randint(0,Nc-1);
+        int random_centroid_id = dist(generator); //std::experimental::randint(0,Nc-1);
         for(int k=0; k<D; k++){
             data[i*D+k] = initial_centroids[random_centroid_id*D+k] + noise(generator);
         }
