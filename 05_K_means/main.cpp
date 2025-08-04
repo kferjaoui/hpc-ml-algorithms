@@ -1,8 +1,18 @@
 #include <iostream>
+#include <fstream>
 #include <cstdlib>
+#include <cmath>
 #include "utils.h"
 
 #define SEED 7
+
+double dist(double* data, int n, double* clusterCentroids, int k, int D){
+    double distance{0.0};
+    for(int d=0; d<D; d++){
+        distance += std::pow(data[n+d] - clusterCentroids[k+d], 2);
+    }
+    return std::sqrt(distance);
+}
 
 int main(){
     std::srand(SEED);
@@ -13,35 +23,100 @@ int main(){
     double epsilon = 0.000001;
 
     double* data = new double[N*D];
+    double* clusterCentroids = new double[K*D];
+    int* assignementClusters = new int[N];
+
+    std::string filename = "./data.bin";
 
     // Generate synthetic data
-    double stddev = 0.5;
-    int Nc = 5;        // Number of initial centroids around which data points are generated
-    double* initialCentroids = new double[Nc*D];
-    
-    generateCentroids(Nc, D, initialCentroids);                     // generates initial_centroids
-    generateInitialData(N, Nc, D, data, initialCentroids, stddev, SEED);   // generates data for the start
-    
-    double* clusterCentroids = new double[K*D];
-    // Randomly generate the K-means K centroids
-    generateCentroids(K, D, clusterCentroids);
-
-    readData("./data.bin", data, clusterCentroids, &N, &D, &K, &epsilon);
-    // writeData("./data.bin", data, clusterCentroids, &N, &D, &K, &epsilon);
-
-    // Print the first 3 points
-    for(int p=0; p<3; p++){
-        std::cout << "Point " << p << " : ";
-        std::cout << "[ ";
-        for(int k=0; k<D; k++){
-            std::cout << data[p*D+k] << "; "; 
-        }
-        std::cout << "]" << std::endl;
+    std::ifstream infile(filename, std::ios::binary);
+    if (!infile){
+        // If no file to read, write the data
+        std::cout << "No data found!\n";
+        std::cout << "Writing synthetic data now..." << std::endl;
+        
+        double mean = 0.0;
+        double stddev = 0.5;
+        int Nc = 5;        // Number of initial centroids around which data points are generated
+        double* initialCentroids = new double[Nc*D];
+        
+        generateCentroids(Nc, D, initialCentroids);                     // generates initial_centroids
+        generateInitialData(N, K, Nc, D, data, initialCentroids, assignementClusters, mean, stddev, SEED); // generates data for the start
+        
+        // Randomly generate the K-means K centroids
+        generateCentroids(K, D, clusterCentroids);
+        
+        writeData(filename, data, clusterCentroids, assignementClusters, &N, &D, &K, &epsilon); 
+        std::cout << "Data written in '" << filename << "'" << std::endl;
+        
+        delete[] initialCentroids;
+    } else{
+        // Read data from binary
+        std::cout << "Reading data..." << std::endl;
+        readData(filename, data, clusterCentroids, assignementClusters, &N, &D, &K, &epsilon);
     }
+    
+    // Print the first 3 points
+    // for(int p=0; p<3; p++){
+    //     std::cout << "Point " << p << " : ";
+    //     std::cout << "[ ";
+    //     for(int k=0; k<D; k++){
+    //         std::cout << data[p*D+k] << "; "; 
+    //     }
+    //     std::cout << "]" << std::endl;
+    // }
+
+    // Array to store the new cluster centroids after re-assignemnt of the points
+    double* newClusterCentroids = new double[K*D];
+    int* count = new int[K]; // Track the number of points in each cluster
+    bool converged = false;
+    int step{0};
+    while(!converged){
+        step++;
+        std::cout<< "Step " << step << std::endl;
+
+        // sets every element to zero
+        std::fill(newClusterCentroids, newClusterCentroids + K * D, 0.0);                      
+        std::fill(count, count + K, 0);                      
+    
+        // Update the assigned Cluster to each point (i) 
+        for(int i=0; i<N; i++){
+            double delta{0.0};
+            for(int k=0; k<K; k++){
+                delta = dist(data, i*D, clusterCentroids, k*D, D);
+                if ( delta < dist(data, i*D, clusterCentroids, assignementClusters[i]*D, D) ){
+                    assignementClusters[i] = k;
+                    count[k] += 1;
+                }
+            }
+        }
+    
+        double* normalizing_factor = new double[K];
+        for(int k=0; k<K; k++) normalizing_factor[k] = 1.0/count[k];
+        
+        // Compute the new coordinates of the cluster centroids 
+        // How? It is the gravity center of all the points within it 
+        for (int n=0; n<N; n++){
+            int k = assignementClusters[n];
+            for(int d=0; d<D; d++){
+                newClusterCentroids[k*D + d] += data[n*D + d] * normalizing_factor[k];
+            }
+        }
+        
+        // Check convergence of the K-means
+        converged = true;
+        for(int k=0; k<K && converged; k++){
+            double d = dist(clusterCentroids, k*D, newClusterCentroids, k*D, D);
+            converged &= (d <= epsilon);
+        }
+    }
+    
 
     delete[] data;
-    delete[] initialCentroids;
     delete[] clusterCentroids;
+    delete[] assignementClusters;
+    delete[] newClusterCentroids;
+    delete[] count;
 
     return 0;
 }
