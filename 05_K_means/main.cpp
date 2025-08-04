@@ -2,14 +2,16 @@
 #include <fstream>
 #include <cstdlib>
 #include <cmath>
+#include <cstring>
 #include "utils.h"
 
 #define SEED 7
 
-double dist(double* data, int n, double* clusterCentroids, int k, int D){
+double sqDist(double* data, int offsetData, double* clusterCentroids, int offsetCentroids, int D){
     double distance{0.0};
     for(int d=0; d<D; d++){
-        distance += std::pow(data[n+d] - clusterCentroids[k+d], 2);
+        double diff = data[offsetData+d] - clusterCentroids[offsetCentroids+d];
+        distance += diff*diff;
     }
     return std::sqrt(distance);
 }
@@ -20,7 +22,7 @@ int main(){
     int N = 1e2;        // Number of data points
     int D = 2;          // Dimesionality of the problem i.e. Number of features per data point
     int K = 3;          // Clustering parameter
-    double epsilon = 0.000001;
+    double epsilon = 0.1;
 
     double* data = new double[N*D];
     double* clusterCentroids = new double[K*D];
@@ -71,6 +73,7 @@ int main(){
     int* count = new int[K]; // Track the number of points in each cluster
     bool converged = false;
     int step{0};
+
     while(!converged){
         step++;
         std::cout<< "Step " << step << std::endl;
@@ -81,37 +84,50 @@ int main(){
     
         // Update the assigned Cluster to each point (i) 
         for(int i=0; i<N; i++){
-            double delta{0.0};
-            for(int k=0; k<K; k++){
-                delta = dist(data, i*D, clusterCentroids, k*D, D);
-                if ( delta < dist(data, i*D, clusterCentroids, assignementClusters[i]*D, D) ){
-                    assignementClusters[i] = k;
-                    count[k] += 1;
+            int best = 0;
+            double bestDist = sqDist(data, i*D, clusterCentroids, 0*D, D);
+            for(int k=1; k<K; k++){
+                double dist = sqDist(data, i*D, clusterCentroids, k*D, D);
+                if ( dist < bestDist){
+                    bestDist = dist;
+                    best = k;
                 }
             }
+            assignementClusters[i] = best;
+            count[best]++;
         }
-    
-        double* normalizing_factor = new double[K];
-        for(int k=0; k<K; k++) normalizing_factor[k] = 1.0/count[k];
         
         // Compute the new coordinates of the cluster centroids 
         // How? It is the gravity center of all the points within it 
+        // 1. Sum all
         for (int n=0; n<N; n++){
             int k = assignementClusters[n];
             for(int d=0; d<D; d++){
-                newClusterCentroids[k*D + d] += data[n*D + d] * normalizing_factor[k];
+                newClusterCentroids[k*D + d] += data[n*D + d];
+            }
+        }
+        // 2. Divide by normalizing factor
+        for (int k = 0; k < K; ++k) {
+            if (count[k] > 0) {
+                for (int d = 0; d < D; ++d)
+                newClusterCentroids[k*D + d] /= count[k];
             }
         }
         
         // Check convergence of the K-means
         converged = true;
         for(int k=0; k<K && converged; k++){
-            double d = dist(clusterCentroids, k*D, newClusterCentroids, k*D, D);
+            double d = sqDist(clusterCentroids, k*D, newClusterCentroids, k*D, D);
             converged &= (d <= epsilon);
         }
+
+        std::size_t bytes = static_cast<std::size_t>(K) * D * sizeof(double);
+        std::memcpy(clusterCentroids,            // destination
+                    newClusterCentroids,         // source
+                    bytes);                      // byte count
+
     }
     
-
     delete[] data;
     delete[] clusterCentroids;
     delete[] assignementClusters;
