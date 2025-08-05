@@ -23,7 +23,7 @@ $(TARGET): $(OBJECTS)
 
 # Clean up generated files
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -f $(OBJECTS) $(TARGET) *.log *.png
 
 # Phony targets (not actual files)
 .PHONY: all clean

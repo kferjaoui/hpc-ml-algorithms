@@ -55,7 +55,8 @@ void writeData(const std::string& filename, double* data, double* clusterCentroi
 }
 
 void readData(const std::string& filename, double*& data, double*& clusterCentroids, int*& assignementClusters, int* N_p, int* D_p, int* K_p, double* epsilon_p){
-    std::ifstream infile(filename, std::ios::binary);
+    // std::ifstream infile(filename, std::ios::binary);
+    std::ifstream infile(filename,  std::ios::in | std::ios::binary);
     if (!infile) { std::cerr << "Cannot open " << filename << '\n'; std::exit(EXIT_FAILURE); }
     
     infile.read(reinterpret_cast<char *>(N_p), sizeof(int));
@@ -66,6 +67,10 @@ void readData(const std::string& filename, double*& data, double*& clusterCentro
     int N = *N_p;
     int D = *D_p;
     int K = *K_p;
+
+    data = new double[N*D];
+    clusterCentroids = new double[K*D];
+    assignementClusters = new int[N];
     
     infile.read(reinterpret_cast<char *>(data), sizeof(double)*N*D);
     infile.read(reinterpret_cast<char *>(clusterCentroids), sizeof(double)*K*D);
