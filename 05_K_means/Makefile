@@ -5,7 +5,7 @@ CXXFLAGS = -std=c++20 -Wall -O3
 TARGET = kmeans
 
 # Source files
-SOURCES = main.cpp utils.cpp kmeansSerial.cpp
+SOURCES = main.cpp utils.cpp kmeansSerial.cpp kmeansThread.cpp
 
 # Object files (generated from source files)
 OBJECTS = $(SOURCES:.cpp=.o)
