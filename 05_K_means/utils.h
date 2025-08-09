@@ -5,7 +5,7 @@
 
 double randDouble();
 
-double sqDist(const double* data, int offsetData, 
+double l2Distance(const double* data, int offsetData, 
               double* clusterCentroids, int offsetCentroids, 
               int D);
 

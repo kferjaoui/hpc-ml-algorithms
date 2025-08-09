@@ -6,10 +6,12 @@ from sklearn.decomposition import PCA
 
 START_LOGFILE = "./start.log"
 END_LOGFILE = "./end.log"
+END_THREADS_LOGFILE = "./end_threads.log"
 START_PLOTFILE = "./start.png"
 END_PLOTFILE = "./end.png"
+END_THREAD_PLOTFILE = "./end_threads.png"
 
-for title, logfile, plotfile in [("Start", START_LOGFILE, START_PLOTFILE), ("End", END_LOGFILE, END_PLOTFILE)]:
+for title, logfile, plotfile in [("Start", START_LOGFILE, START_PLOTFILE), ("End", END_LOGFILE, END_PLOTFILE), ("End (Threads)", END_THREADS_LOGFILE, END_THREAD_PLOTFILE)]:
 
     assert os.path.exists(logfile), "Log file doesn't exist, try running the program."
 

@@ -13,7 +13,7 @@ double randDouble(){
 }
 
 // Compute the square root distance between two D-dimension points
-double sqDist(const double* data, int offsetData, double* clusterCentroids, int offsetCentroids, int D){
+double l2Distance(const double* data, int offsetData, double* clusterCentroids, int offsetCentroids, int D){
     double distance{0.0};
     for(int d=0; d<D; d++){
         double diff = data[offsetData+d] - clusterCentroids[offsetCentroids+d];

@@ -8,9 +8,9 @@ void updateAssignmentLists(int start, int N, int K, int D,
                           int*& assignementClusters, int*& count){
     for(int i=0; i<N; i++){
         int best = 0;
-        double bestDist = sqDist(data, i*D, clusterCentroids, 0*D, D);
+        double bestDist = l2Distance(data, i*D, clusterCentroids, 0*D, D);
         for(int k=1; k<K; k++){
-            double dist = sqDist(data, i*D, clusterCentroids, k*D, D);
+            double dist = l2Distance(data, i*D, clusterCentroids, k*D, D);
             if ( dist < bestDist){
                 bestDist = dist;
                 best = k;
@@ -80,7 +80,7 @@ void kmeansSerial(const int N, const int K, const int D, const double epsilon,
         startTime = CycleTimer::currentSeconds();
         converged = true;
         for(int k=0; k<K; k++){
-            double d = sqDist(clusterCentroids, k*D, newClusterCentroids, k*D, D);
+            double d = l2Distance(clusterCentroids, k*D, newClusterCentroids, k*D, D);
             converged &= (d < epsilon);
         }
         endTime = CycleTimer::currentSeconds();
