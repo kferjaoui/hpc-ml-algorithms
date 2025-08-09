@@ -5,7 +5,7 @@
 
 void updateAssignmentLists(int start, int N, int K, int D,
                           const double* data, double*& clusterCentroids,
-                          int*& assignementClusters, int*& count){
+                          int* assignementClusters, int* count){
     for(int i=0; i<N; i++){
         int best = 0;
         double bestDist = l2Distance(data, i*D, clusterCentroids, 0*D, D);
@@ -21,7 +21,7 @@ void updateAssignmentLists(int start, int N, int K, int D,
     }
 }
 
-void accumulateClusterSums(int N, int D, const double* data, double*& newClusterCentroids, int*& assignementClusters){
+void accumulateClusterSums(int N, int D, const double* data, double* newClusterCentroids, int* assignementClusters){
     for (int n=0; n<N; n++){
         int k = assignementClusters[n];
         for(int d=0; d<D; d++){
@@ -30,7 +30,7 @@ void accumulateClusterSums(int N, int D, const double* data, double*& newCluster
     }
 }
 
-void normalizeClusterSums(int K, int D, double*& newClusterCentroids, int*& count){
+void normalizeClusterSums(int K, int D, double* newClusterCentroids, int* count){
     for (int k = 0; k < K; ++k) {
         if (count[k] > 0) {
             for (int d = 0; d < D; ++d)
