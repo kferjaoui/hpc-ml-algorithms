@@ -1,0 +1,18 @@
+# files
+# data.dat
+
+# by extension
+*.log
+*.tmp
+*.exe
+*.dat
+
+# directories
+.vscode/
+
+# nested matches
+# docs/*.pdf        # only PDFs directly in docs/
+# docs/**/*.pdf     # PDFs anywhere under docs/ (Git ≥2.28 with **)
+
+# exceptions (keep these even if ignored above)
+!.gitignore
