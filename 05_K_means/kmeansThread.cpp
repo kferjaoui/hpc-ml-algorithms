@@ -2,53 +2,23 @@
 #include <thread>
 #include <cstring>
 #include <cmath>
+#include <atomic>
+#include <barrier>
 #include "utils.h"
 #include "CycleTimer.h"
-
-extern void normalizeClusterSums(int K, int D, double* newClusterCentroids, int* count);
-
-void updateAssignmentLists_with_threads(int startIdx, int chunkLength, int K, int D,
-                          const double* data, double* clusterCentroids,
-                          int* assignementClusters, int* countPerThread){
-
-    int endIdx = startIdx + chunkLength;
-    for(int i=startIdx; i<endIdx; i++){
-        int best = 0;
-        double bestDist = l2Distance(data, i*D, clusterCentroids, 0*D, D);
-        for(int k=1; k<K; k++){
-            double dist = l2Distance(data, i*D, clusterCentroids, k*D, D);
-            if ( dist < bestDist){
-                bestDist = dist;
-                best = k;
-            }
-        }
-        assignementClusters[i] = best;
-        countPerThread[best]++;
-    }
-}
-
-void accumulateClusterSums_with_threads(int startIdx, int chunkLength, int D,
-                         const double* data, double* newClusterCentroids_local, int* assignementClusters){
-        int endIdx = startIdx + chunkLength;
-        for (int n=startIdx; n<endIdx; n++){
-            int k = assignementClusters[n];
-            for(int d=0; d<D; d++){
-                newClusterCentroids_local[k*D + d] += data[n*D + d];
-            }
-    }
-}
 
 void kmeansThreads(int numThreads, int N, const int K, const int D, const double epsilon,
                 const double* data, double*& clusterCentroids, int*& assignementClusters){
 
     // Array to store the new cluster centroids after re-assignemnt of the points
     double* newClusterCentroids = new double[K*D];
-    int* globalCount = new int[K]; // Track the number of points in each cluster
+    int* globalCount = new int[K];       // Track the number of points in each cluster
+    int* globalCountThreads = new int[K]; // Track the number of points in each cluster
     bool converged = false;
     int step{0};
-
+    
     double startTime, endTime;
-
+    
     static constexpr int MAX_THREADS = 32;
     
     std::thread workers[MAX_THREADS];
@@ -58,8 +28,16 @@ void kmeansThreads(int numThreads, int N, const int K, const int D, const double
         fprintf(stderr, "Error: Max allowed threads is %d\n", MAX_THREADS);
         exit(1);
     }
+
+    int** globalCount_partial = new int*[numThreads];
+    for (int t = 0; t < numThreads; ++t) {
+        globalCount_partial[t] = new int[K];
+        std::fill(globalCount_partial[t], globalCount_partial[t] + K, 0);
+    }
+
+    std::atomic<int> next{0};
+    int chunk_count = 4;
     
-    // ********************
     // Thread parameters
     int chunkLength[MAX_THREADS];
     int startIdx[MAX_THREADS];
@@ -96,77 +74,200 @@ void kmeansThreads(int numThreads, int N, const int K, const int D, const double
         
         newClusterCentroids_local[t] = sums_buffer + t * sums_stride;
         std::fill(newClusterCentroids_local[t], newClusterCentroids_local[t] + sums_stride, 0.0);
-    } 
-   
-    
-    // VERSION 2: no PADDING
-    // for (int t = 0; t < numThreads; ++t) {
-    //     counts[t] = new int[K];
-    //     std::memset(counts[t], 0, K * sizeof(int));
+    }
 
-    //     newClusterCentroids_local[t] = new double[K * D];
-    //     std::fill(newClusterCentroids_local[t], newClusterCentroids_local[t] + K * D, 0.0);
-    // }
-    // ********************
+    enum phase { 
+    PH_IDLE = 0,
+    PH_ASSIGN_AND_ACCUMULATE = 1,
+    PH_REDUCE_COUNTS = 2,
+    PH_REDUCE_SUM = 3,
+    PH_NORMALIZE = 4,
+    PH_EXIT = 9
+    };
+
+    std::barrier sync_point(numThreads+1);
+    std::atomic<int> phase{PH_IDLE};
+
+    auto workFn = [&](int t){
+        for (;;){
+            sync_point.arrive_and_wait(); // Start of phase as defined by the main thread
+            int ph = phase.load();
+            if (ph == PH_EXIT) break;
+            else if (ph == PH_ASSIGN_AND_ACCUMULATE){
+                // reinitialize from last run
+                std::fill(newClusterCentroids_local[t], newClusterCentroids_local[t] + K * D, 0.0);
+                std::memset(counts[t], 0, K * sizeof(int)); // Reset counts for this thread
+                // ASSIGN
+                int endIdx = startIdx[t] + chunkLength[t];
+                for(int i=startIdx[t]; i<endIdx; i++){
+                    int best = 0;
+                    double bestDist = l2Distance(data, i*D, clusterCentroids, 0*D, D);
+                    for(int k=1; k<K; k++){
+                        double dist = l2Distance(data, i*D, clusterCentroids, k*D, D);
+                        if ( dist < bestDist){
+                            bestDist = dist;
+                            best = k;
+                        }
+                    }
+                    assignementClusters[i] = best;
+                    counts[t][best]++;
+                    // ACCUMULATE
+                    for(int d=0; d<D; d++){
+                        newClusterCentroids_local[t][best*D + d] += data[i*D + d];
+                    }
+                }
+            }
+             else if (ph == PH_REDUCE_COUNTS){
+                int i = next.fetch_add(chunk_count);
+                int e = std::min(i + chunk_count, numThreads);
+                if (i <= numThreads){
+                    // REDUCE_COUNTS
+                    int s = i / chunk_count; // s is the worker index
+                    for(int k=0; k<K; k++){
+                        for(int t=i; t<e; t++){
+                            globalCount_partial[s][k] += counts[t][k];
+                        }
+                    }
+                }
+                // else: no work but still proceed to the finish barrier
+            } else if (ph == PH_REDUCE_SUM){
+                int total = K*D;
+                int lo = (total * t) / numThreads;
+                int hi = (total * (t+1)) / numThreads;
+                for (int off=lo; off<hi; ++off) {
+                    double s=0.0;
+                    for (int tt=0; tt<numThreads; ++tt) s += sums_buffer[tt*sums_stride + off];
+                    newClusterCentroids[off] = s;
+                }
+            } else if (ph == PH_NORMALIZE) {
+                // each thread gets a disjoint [lo, hi) over d
+                int lo = (D * t) / numThreads;
+                int hi = (D * (t + 1)) / numThreads;
+
+                // compute inv per k here
+                for (int k = 0; k < K; ++k) {
+                    int c = globalCount[k];
+                    if (c == 0) continue;                // policy: leave centroid as-is
+                    double inv = 1.0 / double(c);
+                    double* mu = newClusterCentroids + k*D;
+                    for (int d = lo; d < hi; ++d) {
+                        mu[d] *= inv;                    // contiguous writes for this thread
+                    }
+                }
+            }
+
+            sync_point.arrive_and_wait(); // End
+        }
+    };
+    // Start all threads
+    for(int t=0; t<numThreads; t++){
+        workers[t] = std::thread(workFn, t);    
+    }
 
     while(!converged){
         step++;
         std::cout<< "Step " << step << std::endl;
         
-        // sets every element to zero
+        // zero global accumulators
         std::fill(newClusterCentroids, newClusterCentroids + K * D, 0.0);                      
         std::fill(globalCount, globalCount + K, 0);
+        std::fill(globalCountThreads, globalCountThreads + K, 0);
+
         for (int t = 0; t < numThreads; ++t)
-        std::memset(counts[t], 0, K * sizeof(int));                     
+        std::fill(globalCount_partial[t], globalCount_partial[t] + K, 0);
         
-        // A. Update the assigned Cluster to each data point 
-        // (Also re-initialize the per-thread newClusterCentroids_local[t] from last iteration)
+        // ******************************
+        // PHASE 1: ASSIGN_AND_ACCUMULATE
+        // ******************************
         startTime = CycleTimer::currentSeconds();
-        for(int t=1; t<numThreads; t++){
-            workers[t] = std::thread(updateAssignmentLists_with_threads, startIdx[t], chunkLength[t], K, D, data, clusterCentroids, assignementClusters, counts[t]);
-            // re-initialize to zero the per-thread newClusterCentroids_local[t] for accumulation step
-            std::fill(newClusterCentroids_local[t], newClusterCentroids_local[t] + K * D, 0.0);
-        }
+        phase.store(PH_ASSIGN_AND_ACCUMULATE);
+        sync_point.arrive_and_wait(); // Start
+        sync_point.arrive_and_wait(); // END of PH_ASSIGN_AND_ACCUMULATE
+        endTime = CycleTimer::currentSeconds();
+        printf("[Fused Assign + Accumulate Threads]: %.6f ms | ", (endTime - startTime) * 1000);
         
-        updateAssignmentLists_with_threads(0, chunkLength[0], K, D, data, clusterCentroids, assignementClusters, counts[0]);
-        std::fill(newClusterCentroids_local[0], newClusterCentroids_local[0] + K * D, 0.0);
+        // ************************
+        // PHASE 2: COUNT REDUCTION
+        // ************************
+        // THREADED version
+        // startTime = CycleTimer::currentSeconds();
+        // next.store(0); // Reset next index for counting
+        // phase.store(PH_REDUCE_COUNTS);
+        // sync_point.arrive_and_wait(); // Start
+        // sync_point.arrive_and_wait(); // END of PH_REDUCE
         
-        for(int t=1; t<numThreads; t++) workers[t].join();
+        // int nWorkers = (numThreads + chunk_count - 1) / chunk_count;
         
-        // Reduce counts[t] to count
+        // for (int k = 0; k < K; ++k) {
+        //     for (int t = 0; t < nWorkers; ++t) {
+        //         globalCountThreads[k] += globalCount_partial[t][k];
+        //     }
+        // }
+        // endTime = CycleTimer::currentSeconds();
+        // printf("[Count Reduc Threads]: %.6f ms | ", (endTime - startTime) * 1000); 
+        
+        // SERIAL version
+        startTime = CycleTimer::currentSeconds();
         for(int k=0; k<K; k++){
             for(int t=0; t<numThreads; t++){
                 globalCount[k] += counts[t][k];
             }
         }
         endTime = CycleTimer::currentSeconds();
-        printf("[Assignement Threads]: %.3f ms  | ", (endTime - startTime) * 1000);
-        
-        // B. Compute the new coordinates of the cluster centroids 
-        // 1. Sum all
-        startTime = CycleTimer::currentSeconds();
-        for(int t=1; t<numThreads; t++){
-            workers[t] = std::thread(accumulateClusterSums_with_threads, startIdx[t], chunkLength[t], D, data, newClusterCentroids_local[t], assignementClusters);
-        }
-        
-        accumulateClusterSums_with_threads(startIdx[0], chunkLength[0], D, data, newClusterCentroids_local[0], assignementClusters);
-        
-        for(int t=1; t<numThreads; t++) workers[t].join();
+        printf("[Count Reduction Serial]: %.6f ms | ", (endTime - startTime) * 1000);
 
-        // Reduce in newClusterCentroids
+        // Check if the counts match
+        // if (std::memcmp(globalCount, globalCountThreads, K * sizeof(int)) != 0) {
+        //     std::cerr << "Error: Global counts do not match after reduction!" << std::endl;
+            // exit(EXIT_FAILURE);
+        // }
+
+        // *********************
+        // PHASE 3: REDUCE_SUM
+        // *********************
+        // THREADED version
+        // startTime = CycleTimer::currentSeconds();
+        // phase.store(PH_REDUCE_SUM);
+        // sync_point.arrive_and_wait(); // Start
+        // sync_point.arrive_and_wait(); // END of PH_REDUCE  
+        // endTime = CycleTimer::currentSeconds();
+        // printf("[Sum Reduction Threads]: %.6f ms | ", (endTime - startTime) * 1000);
+        
+        // SERIAL version
+        startTime = CycleTimer::currentSeconds();
         for(int d=0; d<K*D; d++){
             for(int t=0; t<numThreads; t++){
                 newClusterCentroids[d] += newClusterCentroids_local[t][d];
             }
         }
         endTime = CycleTimer::currentSeconds();
-        printf("[Sum Threads]: %.3f ms\n", (endTime - startTime) * 1000);
-        // ***************
-        // SERIAL CHUNK
-        // ***************
-        normalizeClusterSums(K, D, newClusterCentroids, globalCount);
+        printf("[Sum Reduction Serial]: %.6f ms | ", (endTime - startTime) * 1000);
         
-        // C. Check convergence of the K-means
+        // *********************
+        // NORMALIZE
+        // *********************
+        // THREADED version
+        // startTime = CycleTimer::currentSeconds();
+        // phase.store(PH_NORMALIZE);
+        // sync_point.arrive_and_wait(); // Start
+        // sync_point.arrive_and_wait(); // END of PH_NORMALIZE
+        // endTime = CycleTimer::currentSeconds();
+        // printf("[Norm Threads]: %.6f ms | ", (endTime - startTime) * 1000);
+        
+        // SERIAL version
+        startTime = CycleTimer::currentSeconds();
+        for (int k = 0; k < K; ++k) {
+            if (globalCount[k] > 0) {
+                for (int d = 0; d < D; ++d)
+                newClusterCentroids[k*D + d] /= globalCount[k];
+            }
+        }
+        endTime = CycleTimer::currentSeconds();
+        printf("[Norm Serial]: %.6f ms\n", (endTime - startTime) * 1000);
+        
+        // *********************
+        // CHECK CONVERGENCE
+        // *********************
         converged = true;
         for(int k=0; k<K; k++){
             double d = l2Distance(clusterCentroids, k*D, newClusterCentroids, k*D, D);
@@ -178,12 +279,19 @@ void kmeansThreads(int numThreads, int N, const int K, const int D, const double
             bytes);                      // byte count        
     }
 
+    // End phase
+    phase.store(PH_EXIT);
+    sync_point.arrive_and_wait(); // Start of end phase
+
+    for (int t = 0; t < numThreads; ++t)
+        if (workers[t].joinable()) workers[t].join();
+
+
     delete[] newClusterCentroids;
     delete[] globalCount;
-    
-    // V2
-    // for (int t = 0; t<numThreads; ++t) delete[] counts[t];
-    // for (int t = 0; t<numThreads; ++t) delete[] newClusterCentroids_local[t];
+    for (int t = 0; t < numThreads; ++t) delete[] globalCount_partial[t];
+    delete[] globalCount_partial;
+    delete[] globalCountThreads;
 
     delete[] counts;
     delete[] newClusterCentroids_local;

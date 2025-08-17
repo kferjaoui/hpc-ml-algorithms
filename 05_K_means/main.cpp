@@ -15,6 +15,9 @@
 extern void kmeansSerial(const int N, const int K, const int D, const double epsilon,
                 const double* data, double*& clusterCentroids, int*& assignementClusters);
 
+extern void kmeansThreadsNaive(int numThreads, int N, const int K, const int D, const double epsilon,
+                const double* data, double*& clusterCentroids, int*& assignementClusters);
+
 extern void kmeansThreads(int numThreads, int N, const int K, const int D, const double epsilon,
                 const double* data, double*& clusterCentroids, int*& assignementClusters);
 
@@ -94,11 +97,11 @@ int main(){
     // *********************
     // K-means (Serial)
     // *********************
-    printf("Running Kmeans in Serial...\n");
+    // printf("Serial Kmeans...\n");
     double startTime = CycleTimer::currentSeconds();
-    kmeansSerial(N, K, D, epsilon, data, clusterCentroids, assignementClusters);
+    // kmeansSerial(N, K, D, epsilon, data, clusterCentroids, assignementClusters);
     double endTime = CycleTimer::currentSeconds();
-    printf("[Total Time Serial]: %.3f ms\n", (endTime - startTime) * 1000);
+    // printf("[Total Time Serial]: %.3f ms\n", (endTime - startTime) * 1000);
     
     logToFile("./end.log", SAMPLE_RATE, data, assignementClusters,
                 clusterCentroids, N, D, K);
@@ -107,11 +110,17 @@ int main(){
     // *********************
     int numThreads = std::thread::hardware_concurrency();
 
-    printf("Running Kmeans in Parallel...\n");
+    // printf("NAIVE Threaded Kmeans...\n");
+    // startTime = CycleTimer::currentSeconds();
+    // kmeansThreadsNaive(numThreads, N, K, D, epsilon, data, clusterCentroidsThreads, assignementClustersThreads);
+    // endTime = CycleTimer::currentSeconds();
+    // printf("[Total Time Naive Threads]: %.3f ms\n", (endTime - startTime) * 1000);
+
+    printf("OPTIMIZED Threaded Kmeans...\n");
     startTime = CycleTimer::currentSeconds();
     kmeansThreads(numThreads, N, K, D, epsilon, data, clusterCentroidsThreads, assignementClustersThreads);
     endTime = CycleTimer::currentSeconds();
-    printf("[Total Time Threads]: %.3f ms\n", (endTime - startTime) * 1000);
+    printf("[Total Time Opt Threads]: %.3f ms\n", (endTime - startTime) * 1000);
 
     // Log the end state of the algorithm
     logToFile("./end_threads.log", SAMPLE_RATE, data, assignementClustersThreads,

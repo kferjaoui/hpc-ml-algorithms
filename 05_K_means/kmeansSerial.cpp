@@ -68,13 +68,13 @@ void kmeansSerial(const int N, const int K, const int D, const double epsilon,
         startTime = CycleTimer::currentSeconds();
         accumulateClusterSums(N, D, data, newClusterCentroids, assignementClusters);
         endTime = CycleTimer::currentSeconds();
-        printf("[Sum]: %.3f ms  | ", (endTime - startTime) * 1000);
+        printf("[Accumulation]: %.3f ms  | ", (endTime - startTime) * 1000);
         
         // 2. Divide by normalizing factor
         startTime = CycleTimer::currentSeconds();
         normalizeClusterSums(K, D, newClusterCentroids, count);
         endTime = CycleTimer::currentSeconds();
-        printf("[Norm]: %.3f ms  | ", (endTime - startTime) * 1000);
+        printf("[Normalization]: %.3f ms  | ", (endTime - startTime) * 1000);
         
         // C. Check convergence of the K-means
         startTime = CycleTimer::currentSeconds();
@@ -84,7 +84,7 @@ void kmeansSerial(const int N, const int K, const int D, const double epsilon,
             converged &= (d < epsilon);
         }
         endTime = CycleTimer::currentSeconds();
-        printf("[Conv Check]: %.3f ms\n", (endTime - startTime) * 1000);
+        printf("[Convergence Check]: %.3f ms\n", (endTime - startTime) * 1000);
         std::size_t bytes = static_cast<std::size_t>(K) * D * sizeof(double);
         std::memcpy(clusterCentroids,    // destination
             newClusterCentroids,         // source
