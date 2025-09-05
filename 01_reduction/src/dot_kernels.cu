@@ -35,7 +35,7 @@ void kernel_small_dot_product(const double* x,
         unsigned mask = __activemask();  // lanes currently active at this instruction
         #pragma unroll
         for(size_t offset=warpSize/2; offset>0; offset>>= 1 ){ //offset starts as 16 then 8, 4, 2 and 1 
-            if (threadIdx.x < offset) value += __shfl_down_sync(mask, value, offset) ; 
+            value += __shfl_down_sync(mask, value, offset) ; 
         }
     }
     if (threadIdx.x == 0) *result = value;
