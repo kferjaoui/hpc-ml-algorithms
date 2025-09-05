@@ -1,4 +1,7 @@
+#include <cuda_runtime.h>
+#include <cmath>
 #include <cstddef>
+#include "dot_kernels.cuh"
 
 __global__
 void kernel_small_dot_product(const double* x,
@@ -12,7 +15,7 @@ void kernel_small_dot_product(const double* x,
     // Per-thread sums
     double sum = 0.0;
     for (size_t idx = threadIdx.x; idx<n; idx+=blockDim.x){
-        sum = fma(x[idx], y[idx], sum);
+        sum = std::fma(x[idx], y[idx], sum);
     }
 
     extern __shared__ double sh[];
@@ -35,5 +38,5 @@ void kernel_small_dot_product(const double* x,
             if (threadIdx.x < offset) value += __shfl_down_sync(mask, value, offset) ; 
         }
     }
-    if (threadIdx == 0) *result = value
+    if (threadIdx.x == 0) *result = value;
 }

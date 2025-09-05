@@ -1,3 +1,6 @@
+#pragma once
+#include <cstdio>
+#include <cstdlib>
 #include <cuda_runtime.h>
 
 #define CUDA_CHECK(stmt)                                     \

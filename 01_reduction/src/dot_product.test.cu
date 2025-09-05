@@ -1,10 +1,10 @@
-#include "helpers.cu"
-#include "dot_kernels.cu"
 #include <cstdio>
 #include <vector>
 #include <cmath>
 #include <algorithm>
 
+#include "helpers.h"
+#include "dot_kernels.cuh"
 
 int main() {
     const size_t n = 1u << 20; // 1,048,576 elements
@@ -37,14 +37,12 @@ int main() {
     CUDA_CHECK(cudaGetDevice(&dev));
     CUDA_CHECK(cudaGetDeviceProperties(&prop, dev));
 
-    const int block = 256;                               // multiple of 32
-    const int maxBlocks = prop.multiProcessorCount * 8;  // 4–8 blocks/SM is a good start
-    int grid = (int)std::min((size_t)((n + block - 1) / block), (size_t)maxBlocks);
-
+    const int block = 256;
+    const dim3 grid(1);  // this kernel assumes a single block launch
     size_t shmem = block * sizeof(double);
 
     // launch
-    dot_kernel<<<grid, block, shmem>>>(dx, dy, n, dout);
+    kernel_small_dot_product<<<grid, block, shmem>>>(dx, dy, n, dout);
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 
@@ -59,7 +57,6 @@ int main() {
     std::printf("CPU ref : %.17g\n", ref);
     std::printf("GPU dot : %.17g\n", gpu);
     std::printf("abs err : %.3e, rel err : %.3e\n", abs_err, rel_err);
-    std::printf("grid=%d, block=%d (SMs=%d)\n", grid, block, prop.multiProcessorCount);
 
     // cleanup
     cudaFree(dx);
