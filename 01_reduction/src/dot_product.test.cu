@@ -38,11 +38,15 @@ int main() {
     CUDA_CHECK(cudaGetDeviceProperties(&prop, dev));
 
     const int block = 256;
-    const dim3 grid(1);  // this kernel assumes a single block launch
-    size_t shmem = block * sizeof(double);
+    const dim3 grid(4, 1, 1);
+    const size_t shmemBytes = block * sizeof(double);
 
     // launch
-    kernel_small_dot_product<<<grid, block, shmem>>>(dx, dy, n, dout);
+    if (grid.x * grid.y * grid.z == 1){
+        dot64_singleblock_warp_downsweep<<<grid, block, shmemBytes>>>(dx, dy, n, dout);
+    } else{
+        dot64_multiblock_warp_downsweep<<<grid, block, shmemBytes>>>(dx, dy, n, dout);
+    }
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
 
