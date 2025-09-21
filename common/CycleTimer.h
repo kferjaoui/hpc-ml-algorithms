@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------------------------
 // NOTE: This file was not written by me. 
 // The code is taken from the Stanford CS149 course materials. 
-// Original source: https://github.com/kferjaoui/cs149-asst1/blob/master/common/CycleTimer.h
+// Original source: https://github.com/stanford-cs149/asst1/blob/master/common/CycleTimer.h
 // ---------------------------------------------------------------------------------------------
  
 
