@@ -194,7 +194,7 @@ void kmeansThreads(int numThreads, int N, const int K, const int D, const double
         // next.store(0); // Reset next index for counting
         // phase.store(PH_REDUCE_COUNTS);
         // sync_point.arrive_and_wait(); // Start
-        // sync_point.arrive_and_wait(); // END of PH_REDUCE
+        // sync_point.arrive_and_wait(); // END of PH_REDUCE_COUNTS
         
         // int nWorkers = (numThreads + chunk_count - 1) / chunk_count;
         
@@ -229,7 +229,7 @@ void kmeansThreads(int numThreads, int N, const int K, const int D, const double
         // startTime = CycleTimer::currentSeconds();
         // phase.store(PH_REDUCE_SUM);
         // sync_point.arrive_and_wait(); // Start
-        // sync_point.arrive_and_wait(); // END of PH_REDUCE  
+        // sync_point.arrive_and_wait(); // END of PH_REDUCE_SUM  
         // endTime = CycleTimer::currentSeconds();
         // printf("[Sum Reduction Threads]: %.6f ms | ", (endTime - startTime) * 1000);
         
