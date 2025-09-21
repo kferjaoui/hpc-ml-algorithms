@@ -47,7 +47,7 @@ void generateInitialData(int N, int K, int Nc, int D, double* data, double* init
     }
 }
 
-// Write data in binary file
+// Write data in binary file (heavily inspired from cs149/asst1 [https://github.com/kferjaoui/cs149-asst1])
 void writeData(const std::string& filename, double* data, double* clusterCentroids, int* assignementClusters, int* N_p, int* D_p, int* K_p, double* epsilon_p){
     std::ofstream file(filename, std::ios::binary);
 
@@ -66,7 +66,7 @@ void writeData(const std::string& filename, double* data, double* clusterCentroi
     file.close();
 }
 
-// Read data from binary file
+// Read data from binary file (heavily inspired from cs149/asst1 [https://github.com/kferjaoui/cs149-asst1])
 void readData(const std::string& filename, double*& data, double*& clusterCentroids, int*& assignementClusters, int* N_p, int* D_p, int* K_p, double* epsilon_p){
     std::ifstream infile(filename,  std::ios::in | std::ios::binary);
     if (!infile) { std::cerr << "Cannot open " << filename << '\n'; std::exit(EXIT_FAILURE); }
@@ -91,7 +91,7 @@ void readData(const std::string& filename, double*& data, double*& clusterCentro
     infile.close();
 }
 
-// logToFile() copied from cs149/asst1  [https://github.com/stanford-cs149/asst1/tree/master]
+// logToFile() copied from cs149/asst1 [https://github.com/stanford-cs149/asst1/tree/master]
 // Log a portion of data (using sampleRate) into a human readable formatted file
 void logToFile(std::string filename, double sampleRate, double *data,
                int *clusterAssignments, double *clusterCentroids, int M, int N,

@@ -1,3 +1,10 @@
+// ---------------------------------------------------------------------------------------------
+// NOTE: This file was not written by me. 
+// The code is taken from the Stanford CS149 course materials. 
+// Original source: https://github.com/kferjaoui/cs149-asst1/blob/master/common/CycleTimer.h
+// ---------------------------------------------------------------------------------------------
+ 
+
 #ifndef _SYRAH_CYCLE_TIMER_H_
 #define _SYRAH_CYCLE_TIMER_H_
 

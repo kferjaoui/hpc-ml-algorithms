@@ -5,7 +5,7 @@
 #include <cstring>
 #include "utils.h"
 
-#include "CycleTimer.h"
+#include "../common/CycleTimer.h"
 
 #define SEED 7
 #define SAMPLE_RATE 1e-2

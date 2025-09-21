@@ -5,7 +5,7 @@
 #include <atomic>
 #include <barrier>
 #include "utils.h"
-#include "CycleTimer.h"
+#include "../common/CycleTimer.h"
 
 void kmeansThreads(int numThreads, int N, const int K, const int D, const double epsilon,
                 const double* data, double*& clusterCentroids, int*& assignementClusters){

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include "utils.h"
-#include "CycleTimer.h"
+#include "../common/CycleTimer.h"
 
 void updateAssignmentLists(int start, int N, int K, int D,
                           const double* data, double*& clusterCentroids,

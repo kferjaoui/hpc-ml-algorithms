@@ -4,7 +4,7 @@
 #include<vector>
 #include<cmath>
 #include<cstdio>
-#include "CycleTimer.h"
+#include "../../common/CycleTimer.h"
 
 void dotThreadWorker(int threadIdx,
                     const double* x, 

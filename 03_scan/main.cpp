@@ -4,7 +4,7 @@
 #include<thread>
 #include<barrier>
 
-#include "CycleTimer.h"
+#include "../common/CycleTimer.h"
 
 using namespace std;
 

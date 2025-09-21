@@ -3,7 +3,7 @@
 #include <cstring>
 #include <cmath>
 #include "utils.h"
-#include "CycleTimer.h"
+#include "../common/CycleTimer.h"
 
 extern void normalizeClusterSums(int K, int D, double* newClusterCentroids, int* count);
 
