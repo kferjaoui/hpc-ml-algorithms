@@ -1,7 +1,6 @@
 #pragma once
 #include<vector>
 #include<cassert>
-#include<string>
 namespace mx{
 
 template<typename T>
@@ -36,11 +35,11 @@ public:
     [[nodiscard]] size_t cols() const noexcept { return _cols; }
     [[nodiscard]] size_t size() const noexcept { return _data.size(); }
 
-    [[nodiscard]] T*       begin() noexcept { return _data.data(); }
-    [[nodiscard]] const T* begin() const noexcept { return _data.data(); }
+    T*       begin() noexcept { return _data.data(); }
+    const T* begin() const noexcept { return _data.data(); }
     
-    [[nodiscard]] T*       end() noexcept { return _data.data() + _data.size(); }
-    [[nodiscard]] const T* end() const noexcept { return _data.data() + _data.size(); }
+    T*       end() noexcept { return _data.data() + _data.size(); }
+    const T* end() const noexcept { return _data.data() + _data.size(); }
 
 };
 
