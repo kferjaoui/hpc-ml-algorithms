@@ -15,6 +15,7 @@ class Dense {
     }
 
 public:
+    Dense() = default;
     Dense(size_t rows, size_t cols):
         _rows(rows), _cols(cols), _data(rows*cols){}
     
