@@ -1,6 +1,8 @@
+#include<iostream>
 #include"mx/dense.h"
-#include"mx/alg/fill.h"
-#include"mx/alg/display.h"
+#include"mx/utils/fill.h"
+#include"mx/utils/display.h"
+#include"mx/utils/ostream.h"
 
 int main()
 {
@@ -10,6 +12,12 @@ int main()
 
     mx::display(A);
     mx::display(B);
+
+    A(0,0) = 3.141;
+    B(7,3) = 1.618;
+
+    std::cout << "A = \n" << A << "\n";
+    std::cout << "B = \n" << B << "\n";
 
     return 0;
 }
