@@ -1,7 +1,6 @@
 #include<iostream>
 #include"mx/dense.h"
 #include"mx/utils/fill.h"
-#include"mx/utils/display.h"
 #include"mx/utils/ostream.h"
 
 int main()
@@ -9,9 +8,6 @@ int main()
     mx::Dense<double> A(4,4), B(8,4);
     mx::fill(A, 1.0);
     mx::fill(B, 2.0);
-
-    // mx::display(A);
-    // mx::display(B);
 
     A(0,0) = 3.141;
     B(7,3) = 1.618;

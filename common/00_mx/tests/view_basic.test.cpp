@@ -1,7 +1,6 @@
 #include<iostream>
 #include"mx/dense.h"
 #include"mx/utils/fill.h"
-#include"mx/utils/display.h"
 #include"mx/utils/ostream.h"
 
 int main()
