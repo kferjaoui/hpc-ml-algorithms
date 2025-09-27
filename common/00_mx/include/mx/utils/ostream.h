@@ -1,6 +1,7 @@
 #pragma once
 #include<ostream>
 #include"mx/dense.h"
+#include"mx/dense_view.h"
 
 namespace mx{
 
@@ -13,6 +14,24 @@ std::ostream& operator<<(std::ostream& os, const Dense<T>& Matrix){
         for(size_t j = 0; j < c; ++j){
             if (j) os << ", ";
             os << Matrix(i,j);
+        }
+        os << "]";
+        if (i+1 < r) os << ",";
+        os << "\n";
+    }
+    os << "]";
+    return os;
+}
+
+template<typename T>
+std::ostream& operator<<(std::ostream& os, const DenseView<T>& MatrixView){
+    const auto r = MatrixView.rows(), c = MatrixView.cols();
+    os << "[\n";
+    for(size_t i = 0; i < r; ++i){   
+        os << " [";
+        for(size_t j = 0; j < c; ++j){
+            if (j) os << ", ";
+            os << MatrixView(i,j);
         }
         os << "]";
         if (i+1 < r) os << ",";

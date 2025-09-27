@@ -1,22 +1,25 @@
 CXX      := g++
-CXXFLAGS := -O3 -std=c++20 
-INC      := -Iinclude
+CXXFLAGS := -O3 -std=c++20 -Wall -Wextra -Wpedantic
+INC      := -Iinclude -MMD -MP
 
-TEST_BIN := dense_basic_test
+TEST_SRCS := $(wildcard tests/*.cpp)
+OBJS      := $(patsubst tests/%.cpp,build/%.o,$(TEST_SRCS))
+DEPS      := $(OBJS:.o=.d)
+TEST_BINS := $(patsubst tests/%.cpp,bin/%,$(TEST_SRCS))
 
-CPU_SRC := tests/dense_basic.test.cpp
+all: $(TEST_BINS)
 
-CPU_OBJ := $(CPU_SRC:.cpp=.o)
+bin/%: build/%.o
+	@mkdir -p $(@D) 
+	$(CXX) $(CXXFLAGS) $(INC) $< -o $@ 
 
-all: $(TEST_BIN)
-
-$(TEST_BIN): $(CPU_OBJ)
-	$(CXX) $(CXXFLAGS) $(INC) $^ -o $@ 
-
-tests/%.o: tests/%.cpp 
+build/%.o: tests/%.cpp
+	@mkdir -p $(@D) 
 	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
 
 clean: 
-	rm -f $(TEST_BIN) $(CPU_OBJ)
+	rm -rf build bin
 
 .PHONY: all clean
+
+-include $(DEPS)

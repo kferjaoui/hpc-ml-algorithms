@@ -10,8 +10,8 @@ int main()
     mx::fill(A, 1.0);
     mx::fill(B, 2.0);
 
-    mx::display(A);
-    mx::display(B);
+    // mx::display(A);
+    // mx::display(B);
 
     A(0,0) = 3.141;
     B(7,3) = 1.618;

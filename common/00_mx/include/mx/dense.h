@@ -1,6 +1,7 @@
 #pragma once
 #include<vector>
 #include<cassert>
+
 namespace mx{
 
 template<typename T>
@@ -12,6 +13,11 @@ class Dense {
     [[nodiscard]] size_t rm_idx(size_t i, size_t j) const noexcept{
         assert(i<_rows && j<_cols);
         return j + _cols*i;
+    }
+
+    [[nodiscard]] size_t cm_idx(size_t i, size_t j) const noexcept{
+        assert(i<_rows && j<_cols);
+        return i + _rows*j;
     }
 
 public:
