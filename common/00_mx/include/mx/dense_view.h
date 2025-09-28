@@ -57,7 +57,6 @@ class DenseView{
         T*       end() noexcept { return _buffer + _size; }
         const T* end() const noexcept { return _buffer + _size; }
 
-
 };
 
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include<vector>
 #include<cassert>
+#include"dense_view.h"
 
 namespace mx{
 
@@ -41,6 +42,10 @@ public:
     [[nodiscard]] size_t rows() const noexcept { return _rows; }
     [[nodiscard]] size_t cols() const noexcept { return _cols; }
     [[nodiscard]] size_t size() const noexcept { return _data.size(); }
+
+    // expose a contiguous row-major view of the dense matrix
+    DenseView<T>       view() noexcept       { return DenseView<T>(_data.data(), _rows, _cols); }
+    DenseView<const T> view() const noexcept { return DenseView<const T>(_data.data(), _rows, _cols); }
 
     T*       begin() noexcept { return _data.data(); }
     const T* begin() const noexcept { return _data.data(); }

@@ -1,0 +1,23 @@
+CXX      := g++
+CXXFLAGS := -O3 -std=c++20 #-Wall -Wextra -Wpedantic
+INC      := -I. -I../common/00_mx/include -MMD -MP
+
+CPU_SRCS  := main.cpp
+OBJS      := $(patsubst %.cpp,%.o,$(CPU_SRCS))
+DEPS      := $(OBJS:.o=.d)
+BINS      := gemm_test
+
+all: $(BINS)
+
+gemm_test: main.o
+	$(CXX) $(CXXFLAGS) $(INC) $< -o $@ 
+
+main.o: main.cpp 
+	$(CXX) $(CXXFLAGS) $(INC) -c $< -o $@
+
+clean: 
+	rm -f $(OBJS) $(DEPS) $(BINS)
+
+.PHONY: all clean
+
+-include $(DEPS)
