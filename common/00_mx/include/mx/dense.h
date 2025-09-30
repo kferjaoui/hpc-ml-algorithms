@@ -9,6 +9,7 @@ template<typename T>
 class Dense {
     size_t _rows{0};
     size_t _cols{0};
+    size_t _size{0};
     std::vector<T> _data;
     
     [[nodiscard]] size_t rm_idx(size_t i, size_t j) const noexcept{
@@ -24,10 +25,10 @@ class Dense {
 public:
     Dense() = default;
     Dense(size_t rows, size_t cols):
-        _rows(rows), _cols(cols), _data(rows*cols){}
+        _rows(rows), _cols(cols), _size(rows*cols), _data(rows*cols){}
     
     Dense(size_t rows, size_t cols, const T& init):
-        _rows(rows), _cols(cols), _data(rows*cols, init){}
+        _rows(rows), _cols(cols), _size(rows*cols), _data(rows*cols, init){}
     
     [[nodiscard]] T& operator()(size_t i, size_t j) noexcept {
         assert(i<_rows && j<_cols);
@@ -37,6 +38,16 @@ public:
     [[nodiscard]] const T& operator()(size_t i, size_t j) const noexcept {
         assert(i<_rows && j<_cols);
         return _data[rm_idx(i,j)];
+    }
+
+    bool operator==(const Dense<T>& other) const noexcept{
+        if(_size != other._size) return false;
+
+        for(size_t idx; idx<_size; idx++){
+            if(_data[idx] != other._data[idx]) return false;
+        }
+
+        return true;
     }
 
     [[nodiscard]] size_t rows() const noexcept { return _rows; }
