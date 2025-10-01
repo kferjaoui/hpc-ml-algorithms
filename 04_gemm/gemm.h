@@ -49,12 +49,20 @@ void gemm_cpu_threads_row_cyclic(DenseView<const T> A, DenseView<const T> B, Den
     std::vector<std::thread> threads;
     threads.reserve(numThreads);
 
-    auto workFunction = [A, B, &C, N, M, K, numThreads](size_t tid){
+    // Materialize the transposed of B for better locality
+    Dense<T> BT(M, K);
+    for(size_t r=0; r<K; r++){
+        for(size_t c=0; c<M; c++){
+            BT(c,r) = B(r,c); 
+        }
+    }
+
+    auto workFunction = [&, N, M, K, numThreads](size_t tid){
         for(size_t i = tid; i<N; i+= numThreads){
             for(size_t j=0; j<M; j++){
                 T sum{};
                 for(size_t k=0; k<K; k++){
-                    sum += A(i,k)*B(k,j); 
+                    sum += A(i,k)*BT(j,k); // cache-friendly for the pass on BT too 
                 }
                 C(i,j) = sum;
             }

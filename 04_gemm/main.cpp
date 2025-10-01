@@ -13,10 +13,10 @@ mx::DenseView<const T> as_const(mx::DenseView<T> view) noexcept{
 
 int main(){
     
-    mx::Dense<double> A(1000, 1000, 1.0);
-    mx::Dense<double> B(1000, 1000, 2.0);
-    mx::Dense<double> C(1000, 1000, 0.0);
-    mx::Dense<double> D(1000, 1000, 0.0);
+    mx::Dense<double> A(2000, 2000, 1.0);
+    mx::Dense<double> B(2000, 2000, 2.0);
+    mx::Dense<double> C(2000, 2000, 0.0);
+    mx::Dense<double> D(2000, 2000, 0.0);
 
     // Naive sequential GEMM 
     double startTime = CycleTimer::currentSeconds();
