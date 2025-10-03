@@ -17,6 +17,11 @@ void gemm_cpu_threads_row_cyclic(const Dense<T>& A, const Dense<T>& B, Dense<T>&
 }
 
 template<typename T>
+void gemm_cpu_threads_row_block(const Dense<T>& A, const Dense<T>& B, Dense<T>& C, size_t numThreads){
+    gemm_cpu_threads_row_block(A.view(), B.view(), C.view(), numThreads);
+}
+
+template<typename T>
 void gemm(DenseView<const T> A, DenseView<const T> B, DenseView<T> C) {
     size_t N = A.rows();
     size_t K = A.cols();
@@ -59,6 +64,57 @@ void gemm_cpu_threads_row_cyclic(DenseView<const T> A, DenseView<const T> B, Den
 
     auto workFunction = [&, N, M, K, numThreads](size_t tid){
         for(size_t i = tid; i<N; i+= numThreads){
+            for(size_t j=0; j<M; j++){
+                T sum{};
+                for(size_t k=0; k<K; k++){
+                    sum += A(i,k)*BT(j,k); // cache-friendly for the pass on BT too 
+                }
+                C(i,j) = sum;
+            }
+        }
+    };
+
+    for(size_t tid=0; tid<numThreads; tid++){
+        threads.emplace_back(workFunction, tid);
+    }
+
+    for(auto& t:threads){
+        if(t.joinable()) t.join();
+    }
+    
+}
+
+
+template<typename T>
+void gemm_cpu_threads_row_block(DenseView<const T> A, DenseView<const T> B, DenseView<T> C, size_t numThreads = 8){
+    size_t N = A.rows();
+    size_t K = A.cols();
+    size_t M = B.cols();
+
+    assert(K == B.rows() && N == C.rows() && M == C.cols());
+    if (N == 0 || M == 0 || K == 0) return;
+
+    numThreads = numThreads? std::min(numThreads, N) : 1;
+
+    std::vector<std::thread> threads;
+    threads.reserve(numThreads);
+
+    // Materialize the transposed of B for better locality
+    Dense<T> BT(M, K);
+    for(size_t r=0; r<K; r++){
+        for(size_t c=0; c<M; c++){
+            BT(c,r) = B(r,c); 
+        }
+    }
+
+    auto baseWork  = N / numThreads;
+    auto remainder = N % numThreads;
+
+    auto workFunction = [&, N, M, K, numThreads](size_t tid){
+        auto workChunk = baseWork + (tid<remainder? 1:0); 
+        auto start = tid * baseWork + std::min(tid,remainder);
+        auto end = start + workChunk;
+        for(size_t i = start ; i < end; i+= 1){
             for(size_t j=0; j<M; j++){
                 T sum{};
                 for(size_t k=0; k<K; k++){
