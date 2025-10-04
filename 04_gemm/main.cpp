@@ -20,6 +20,7 @@ int main(){
     mx::Dense<double> D(2000, 2000, 0.0);
     mx::Dense<double> E(2000, 2000, 0.0);
     mx::Dense<double> F(2000, 2000, 0.0);
+    mx::Dense<double> G(2000, 2000, 0.0);
 
 
     // ++++++++++++ SEQUENTIAL GEMMs +++++++++++++++
@@ -31,22 +32,36 @@ int main(){
     auto seq_time = endTime - startTime;
     printf("[Naive GEMM]: %.3f ms\n", (endTime - startTime) * 1000);
 
-    // ++++++++++++ PARALLEL GEMMs +++++++++++++++
-
-    size_t Nthreads = std::thread::hardware_concurrency();
-    std::cout << Nthreads << " concurrent threads are supported.\n";
-
     // GEMM with L1/L2/L3 cache blocking 
     auto min_time = seq_time;
     
     for(size_t i=0; i<Nattempts; i++){
         startTime = CycleTimer::currentSeconds();
-        mx::gemm_cpu_threads_cache_blocked(A, B, D, Nthreads);
+        mx::gemm_cpu_cache_blocked(A, B, D);
         endTime = CycleTimer::currentSeconds();
         min_time = std::min(min_time, endTime - startTime);
     }
 
     if(C == D){
+        printf("[GEMM Cache Blocked]: %.3f ms\n", (min_time) * 1000);
+    } else std::cout << "Mismatch in values...";
+
+    // ++++++++++++ PARALLEL GEMMs +++++++++++++++
+
+    size_t Nthreads = std::thread::hardware_concurrency();
+    std::cout << Nthreads << " concurrent threads are supported.\n";
+
+    // Threaded GEMM with cache blocking 
+    min_time = seq_time;
+    
+    for(size_t i=0; i<Nattempts; i++){
+        startTime = CycleTimer::currentSeconds();
+        mx::gemm_cpu_threads_cache_blocked(A, B, E, Nthreads);
+        endTime = CycleTimer::currentSeconds();
+        min_time = std::min(min_time, endTime - startTime);
+    }
+
+    if(C == E){
         printf("[GEMM // Cache Blocked]: %.3f ms\n", (min_time) * 1000);
     } else std::cout << "Mismatch in values...";
 
@@ -55,12 +70,12 @@ int main(){
     
     for(size_t i=0; i<Nattempts; i++){
         startTime = CycleTimer::currentSeconds();
-        mx::gemm_cpu_threads_row_cyclic(A, B, E, 16);
+        mx::gemm_cpu_threads_row_cyclic(A, B, F, 16);
         endTime = CycleTimer::currentSeconds();
         min_time = std::min(min_time, endTime - startTime);
     }
 
-    if(C == E){
+    if(C == F){
         printf("[GEMM // Row-cyclic]: %.3f ms\n", (min_time) * 1000);
     } else std::cout << "Mismatch in values...";
 
@@ -69,12 +84,12 @@ int main(){
     
     for(size_t i=0; i<Nattempts; i++){
         startTime = CycleTimer::currentSeconds();
-        mx::gemm_cpu_threads_row_block(A, B, F, 16);
+        mx::gemm_cpu_threads_row_block(A, B, G, 16);
         endTime = CycleTimer::currentSeconds();
         min_time = std::min(min_time, endTime - startTime);  
     }
 
-    if(C == F){
+    if(C == G){
         printf("[GEMM // Partionned]: %.3f ms\n", (min_time) * 1000);
     } else std::cout << "Mismatch in values...";
     
