@@ -31,31 +31,31 @@ int main(){
     auto seq_time = endTime - startTime;
     printf("[Naive GEMM]: %.3f ms\n", (endTime - startTime) * 1000);
 
+    // ++++++++++++ PARALLEL GEMMs +++++++++++++++
+
+    size_t Nthreads = std::thread::hardware_concurrency();
+    std::cout << Nthreads << " concurrent threads are supported.\n";
+
     // GEMM with L1/L2/L3 cache blocking 
     auto min_time = seq_time;
     
     for(size_t i=0; i<Nattempts; i++){
         startTime = CycleTimer::currentSeconds();
-        mx::gemm_cpu_cache_blocked(A, B, D);
+        mx::gemm_cpu_threads_cache_blocked(A, B, D, Nthreads);
         endTime = CycleTimer::currentSeconds();
         min_time = std::min(min_time, endTime - startTime);
     }
 
     if(C == D){
-        printf("[GEMM Cache Blocked]: %.3f ms\n", (min_time) * 1000);
+        printf("[GEMM // Cache Blocked]: %.3f ms\n", (min_time) * 1000);
     } else std::cout << "Mismatch in values...";
-
-    // ++++++++++++ PARALLEL GEMMs +++++++++++++++
-
-    size_t Nthreads = std::thread::hardware_concurrency();
-    std::cout << Nthreads << " concurrent threads are supported.\n";
 
     // Naive strided parallel GEMM over rows 
     min_time = seq_time;
     
     for(size_t i=0; i<Nattempts; i++){
         startTime = CycleTimer::currentSeconds();
-        mx::gemm_cpu_threads_row_cyclic(A, B, E, Nthreads);
+        mx::gemm_cpu_threads_row_cyclic(A, B, E, 16);
         endTime = CycleTimer::currentSeconds();
         min_time = std::min(min_time, endTime - startTime);
     }
@@ -69,7 +69,7 @@ int main(){
     
     for(size_t i=0; i<Nattempts; i++){
         startTime = CycleTimer::currentSeconds();
-        mx::gemm_cpu_threads_row_block(A, B, F, Nthreads);
+        mx::gemm_cpu_threads_row_block(A, B, F, 16);
         endTime = CycleTimer::currentSeconds();
         min_time = std::min(min_time, endTime - startTime);  
     }
