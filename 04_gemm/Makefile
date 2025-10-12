@@ -1,5 +1,5 @@
 CXX      := g++
-CXXFLAGS := -O3 -std=c++20 -pthread #-Wall -Wextra -Wpedantic
+CXXFLAGS := -O3 -march=native -std=c++20 -pthread #-Wall -Wextra -Wpedantic
 INC      := -I. -I../common -I../common/00_mx/include -MMD -MP
 
 CPU_SRCS  := main.cpp

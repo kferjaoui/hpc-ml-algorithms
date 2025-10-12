@@ -21,6 +21,7 @@ int main(){
     mx::Dense<double> E(2000, 2000, 0.0);
     mx::Dense<double> F(2000, 2000, 0.0);
     mx::Dense<double> G(2000, 2000, 0.0);
+    mx::Dense<double> H(2000, 2000, 0.0);
 
 
     // ++++++++++++ SEQUENTIAL GEMMs +++++++++++++++
@@ -91,6 +92,20 @@ int main(){
 
     if(C == G){
         printf("[GEMM // Partionned]: %.3f ms\n", (min_time) * 1000);
+    } else std::cout << "Mismatch in values...";
+    
+    // Cache Blocks + Microtiling of parallel GEMM
+    min_time = seq_time;
+    
+    for(size_t i=0; i<Nattempts; i++){
+        startTime = CycleTimer::currentSeconds();
+        mx::gemm_cpu_threads_microtiles(A, B, H, Nthreads);
+        endTime = CycleTimer::currentSeconds();
+        min_time = std::min(min_time, endTime - startTime);  
+    }
+
+    if(C == H){
+        printf("[GEMM // Microtiles]: %.3f ms\n", (min_time) * 1000);
     } else std::cout << "Mismatch in values...";
     
     return 0;

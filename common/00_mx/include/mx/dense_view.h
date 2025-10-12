@@ -53,6 +53,9 @@ class DenseView{
         // Assumes contiguous views; TODO: Generalize
         T*       begin() noexcept { return _buffer; }
         const T* begin() const noexcept { return _buffer; }
+
+        T*       at(size_t i, size_t j) noexcept       { return _buffer + _strides[1] * j + _strides[0] *i; }
+        const T* at(size_t i, size_t j) const noexcept { return _buffer + _strides[1] * j + _strides[0] *i; }
         
         T*       end() noexcept { return _buffer + _size; }
         const T* end() const noexcept { return _buffer + _size; }

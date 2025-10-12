@@ -9,7 +9,7 @@ template<typename T>
 class Dense {
     size_t _rows{0};
     size_t _cols{0};
-    size_t _size{0};
+    size_t _size{0}; 
     std::vector<T> _data;
     
     [[nodiscard]] size_t rm_idx(size_t i, size_t j) const noexcept{
@@ -60,6 +60,9 @@ public:
 
     T*       begin() noexcept { return _data.data(); }
     const T* begin() const noexcept { return _data.data(); }
+
+    T*       at(size_t i, size_t j) noexcept       { return _data.data() + rm_idx(i,j); }
+    const T* at(size_t i, size_t j) const noexcept { return _data.data() + rm_idx(i,j); }
     
     T*       end() noexcept { return _data.data() + _data.size(); }
     const T* end() const noexcept { return _data.data() + _data.size(); }
