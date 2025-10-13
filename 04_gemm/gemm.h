@@ -1,10 +1,10 @@
 #pragma once
 #include<cassert>
 #include<thread>
+#include<cmath>
 #include"mx/dense.h"
 #include"mx/dense_view.h"
 
-#include "immintrin.h"
 
 namespace mx{
 
@@ -288,9 +288,9 @@ void gemm_cpu_threads_microtiles(DenseView<const T> A, DenseView<const T> B, Den
     assert(K == B.rows() && N == C.rows() && M == C.cols());
     if (N == 0 || M == 0 || K == 0) return;
 
-    const size_t nc = 128; // rows of A/C per block
+    const size_t nc = 256; // rows of A/C per block
     const size_t kc = 256; // depth of A/B per block
-    const size_t mc = 256; // columns of B/C per block
+    const size_t mc = 128; // columns of B/C per block
 
     size_t Nb = (N + nc - 1) / nc; // number of row blocks 
     size_t Kb = (K + kc - 1) / kc; // number of depth blocks
@@ -341,13 +341,42 @@ void gemm_cpu_threads_microtiles(DenseView<const T> A, DenseView<const T> B, Den
                             T sum[nr*mr]; 
                             for(size_t idx=0; idx<nr*mr; idx++) sum[idx] = T{}; // set to zero basically
 
-                            for(size_t p=pc; p<pend; p++){
-                                const T* B_ptr = B.at(p,j0_micro);  //contiguous in memory across
+                            // Unroll the k-loop over the micro-tile
+                            size_t p=pc;
+                            const size_t pend4 = pc + ((pend - pc)/4)*4;
+                            for(; p<pend4; p+=4){
+                                const T* Bp0 = B.at(p,j0_micro);  //contiguous in memory across j
+                                const T* Bp1 = B.at(p+1,j0_micro);
+                                const T* Bp2 = B.at(p+2,j0_micro);
+                                const T* Bp3 = B.at(p+3,j0_micro);
 
                                 for(size_t i=0; i<i_valid; i++){
-                                    T a = A(i0_micro + i,p); // broadcast A(i+i0_micro,p)
+                                    // broadcast A(i+i0_micro,p)
+                                    const T a0 = A(i0_micro + i,p); 
+                                    const T a1 = A(i0_micro + i,p+1); 
+                                    const T a2 = A(i0_micro + i,p+2); 
+                                    const T a3 = A(i0_micro + i,p+3); 
+                                    
                                     for(size_t j=0; j<j_valid; j++){
-                                        sum[j+mr*i] += a * B_ptr[j];
+                                        T acc_ij{};
+                                        acc_ij = std::fma(a0, Bp0[j], acc_ij);
+                                        acc_ij = std::fma(a1, Bp1[j], acc_ij);
+                                        acc_ij = std::fma(a2, Bp2[j], acc_ij);
+                                        acc_ij = std::fma(a3, Bp3[j], acc_ij);
+
+                                        sum[j+mr*i] +=  acc_ij;
+                                    }
+                                }
+                            }
+
+                            // loop over the remainder number of elements in K-block i.e. pend % 8
+                            p = pend4;
+                            for(; p<pend; p++){
+                                const T* Bp = B.at(p,j0_micro);
+                                for(size_t i=0; i<i_valid; i++){
+                                    T a = A(i0_micro + i,p);
+                                    for(size_t j=0; j<j_valid; j++){
+                                        sum[j+mr*i] =  std::fma(a, Bp[j], sum[j+mr*i]);
                                     }
                                 }
                             }
