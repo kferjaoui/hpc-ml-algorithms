@@ -481,62 +481,81 @@ void gemm_cpu_threads_vectorized(DenseView<const T> A, DenseView<const T> B, Den
                             
                             // SIMD vector of elements of type T with width W corresponding to the
                             // native vector register width for the current target architecture
-                            using vT = stdx::native_simd<T>; 
-                            const size_t width = 8; // vT::size();
+                            using vT = stdx::native_simd<T>;
+                            using mT = typename vT::mask_type;
+                            mT mask(false); // default all lanes to false
+                            const size_t W = vT::size();
                             
-                            // vectorized loop over the 'j_valid/width' full J-blocks of size 'width' 
+                            // vectorized loop over the 'j_valid/W' full J-blocks of size 'W' 
                             size_t j=0;
-                            for(; j+width <= j_valid; j+=width){
-
+                            for(; j < j_valid; j+=W){
+                                const size_t j0_simd = j + j0_micro;
                                 vT acc[nr];
                                 for(size_t i=0; i<nr; i++) acc[i] = vT{};
+                                for(size_t jv=0; jv < std::min(W, j_valid-j); jv++) mask[jv] = true; // set the valid lanes in the mask
 
                                 // Unroll the K-loop by 4 
                                 size_t p=pc;
                                 const size_t pend4 = pc + ((pend - pc)/4)*4;
-                                for(; p<pend; p+=4){
-                                    const T* Bp0 = B.at(p, j+j0_micro);
-                                    vT vB0(Bp0, stdx::element_aligned);
-                                    const T* Bp1 = B.at(p+1, j+j0_micro);
-                                    vT vB1(Bp1, stdx::element_aligned);
-                                    const T* Bp2 = B.at(p+2, j+j0_micro);
-                                    vT vB2(Bp2, stdx::element_aligned);
-                                    const T* Bp3 = B.at(p+3, j+j0_micro);
-                                    vT vB3(Bp3, stdx::element_aligned);
+                                for(; p<pend4; p+=4){
+                                    vT vB0{}, vB1{}, vB2{}, vB3{};
+                                    stdx::where(mask, vB0).copy_from(&B(p, j0_simd), stdx::element_aligned);
+                                    stdx::where(mask, vB1).copy_from(&B(p+1, j0_simd), stdx::element_aligned);
+                                    stdx::where(mask, vB2).copy_from(&B(p+2, j0_simd), stdx::element_aligned);
+                                    stdx::where(mask, vB3).copy_from(&B(p+3, j0_simd), stdx::element_aligned);
+
                                
                                     for(size_t i=0; i<i_valid; i++){
-                                        vT vA0(A(i0_micro + i,p));
+                                        vT vA0(A(i0_micro + i,p)); // all elemnts in the simd vecor are equal to A(i0_micro + i,p) and broadcasted
                                         vT vA1(A(i0_micro + i,p+1));
                                         vT vA2(A(i0_micro + i,p+2));
                                         vT vA3(A(i0_micro + i,p+3));
                                     
-                                        acc[i] += vA0 * vB0; //std::fma(vA0, vB0, acc[i]);
-                                        acc[i] += vA1 * vB1; //std::fma(vA1, vB1, acc[i]);
-                                        acc[i] += vA2 * vB2; //std::fma(vA2, vB2, acc[i]);
-                                        acc[i] += vA3 * vB3; //std::fma(vA3, vB3, acc[i]);
+                                        stdx::where(mask, acc[i]) = acc[i] + vA0 * vB0; //all invalid lanes remain unchanged
+                                        stdx::where(mask, acc[i]) = acc[i] + vA1 * vB1;
+                                        stdx::where(mask, acc[i]) = acc[i] + vA2 * vB2;
+                                        stdx::where(mask, acc[i]) = acc[i] + vA3 * vB3;
                                     }
                                 }
 
                                 // K-tail (0to 3 leftover)
                                 p = pend4;
-                                for(; p<pend4; p++){
-                                    const T* Bp = B.at(p, j+j0_micro);  //contiguous in memory across j
-                                    vT vB(Bp, stdx::element_aligned);
+                                for(; p<pend; p++){
+                                    vT vB{};
+                                    std:where(mask, vB).copy_from(&B(p, j0_simd), stdx::element_aligned);
                                     for(size_t i=0; i<i_valid; i++){
                                         vT vA(A(i0_micro + i,p));
-                                        acc[i] = vA * vB;  //std::fma(vA, vB, acc[i]);
+                                         stdx::where(mask, acc[i]) = acc[i] + vA * vB;
                                     }
                                 }
 
                                 // Store back to C lane by lane
                                 for(size_t i=0; i<i_valid; i++){
-                                    for(size_t lane=0; lane<width; lane++){
-                                        C(i0_micro + i, j0_micro + j + lane) += acc[i][lane];
-                                    }
+                                    // load C into a masked vector, add, then store back (also masked)
+                                    vT vC{};
+                                    stdx::where(mask, vC).copy_from(&C(i0_micro + i, j0_simd), stdx::element_aligned);
+                                    vC += acc[i];
+                                    stdx::where(mask, vC).copy_to(&C(i0_micro + i, j0_simd), stdx::element_aligned);
                                 }
                             }
 
-                            // TODO: Handle Tail of the J-loop i.e. remainder of 'j_valid % width' when 'j_valid' is not multiple of 'width'
+                            // // Handle Tail of the J-loop without SIMD (scalar) i.e. the remainder 'j_valid % W' when 'j_valid' is not multiple of 'W'
+                            // // At this point j is equal to (j_valid/W) * W
+                            // const size_t j_tail = j_valid % W;
+                            // if(j_tail){
+                            //     const size_t j0_tail = j + j0_micro;
+                            //     for(size_t p=pc; p<pend; p++){
+                            //         const T* B_tail = B.at(p, j0_tail); // pointer to the start of the tail block in B
+                            //         for(size_t i=0; i<i_valid; i++){
+                            //             const T a = A(i+i0_micro, p); 
+                            //             T* Ci = C.at(i0_micro + i,j0_tail); // pointer to the start of the tail block in C
+    
+                            //             for(size_t jt=0;jt<j_tail; jt++){
+                            //                 Ci[jt] += a * B_tail[jt];
+                            //             }
+                            //         }
+                            //     }
+                            // }
 
                         } //M_micro
                     }     //N_micro
