@@ -92,7 +92,7 @@ int main(){
     }
 
     if(C == G){
-        printf("[GEMM // Partionned]: %.3f ms\n", (min_time) * 1000);
+        printf("[GEMM // Row-blocks]: %.3f ms\n", (min_time) * 1000);
     } else std::cout << "Mismatch in values...";
     
     // Cache Blocks + Microtiling of parallel GEMM
@@ -120,7 +120,7 @@ int main(){
     }
 
     if(C == I){
-        printf("[GEMM // Microkernel]: %.3f ms\n", (min_time) * 1000);
+        printf("[GEMM // Vectorized]: %.3f ms\n", (min_time) * 1000);
     } else std::cout << "Mismatch in values...";
     
     return 0;
