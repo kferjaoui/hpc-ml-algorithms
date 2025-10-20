@@ -42,10 +42,15 @@ int main() {
     const size_t shmemBytes = block * sizeof(double);
 
     // launch
+    // if (grid.x * grid.y * grid.z == 1){
+    //     dot64_singleblock_warp_downsweep<<<grid, block, shmemBytes>>>(dx, dy, n, dout);
+    // } else{
+    //     dot64_multiblock_warp_downsweep<<<grid, block, shmemBytes>>>(dx, dy, n, dout);
+    // }
     if (grid.x * grid.y * grid.z == 1){
-        dot64_singleblock_warp_downsweep<<<grid, block, shmemBytes>>>(dx, dy, n, dout);
+        dotproduct_singleblock_warp_downsweep<double><<<grid, block, shmemBytes>>>(dx, dy, n, dout);
     } else{
-        dot64_multiblock_warp_downsweep<<<grid, block, shmemBytes>>>(dx, dy, n, dout);
+        dotproduct_multiblock_warp_downsweep<double><<<grid, block, shmemBytes>>>(dx, dy, n, dout);
     }
     CUDA_CHECK(cudaGetLastError());
     CUDA_CHECK(cudaDeviceSynchronize());
