@@ -9,9 +9,9 @@ __device__ inline int      ilog2_pow2(uint32_t n) { return countr_zero(n); }
 __device__ inline uint32_t next_pow2_u32(uint32_t n) { return bit_ceil(n); } // ceil to next power of two
 
 __global__
-void gpu_monoblock_exclusive_scan(const int* __restrict__ in_dev,
-                                int* __restrict__ out_dev,
-                                uint32_t N)
+void blelloch_exclusive_scan_singleblock(const int* __restrict__ in_dev,
+                                        int* __restrict__ out_dev,
+                                        uint32_t N)
 {
     // Let's assume one block i.e. gridDim.x is 1 and blockIdx.x is 0
     const uint32_t nextPow2_N = next_pow2_u32(N ? N : 1u);
