@@ -1,5 +1,6 @@
 #pragma once
 #include<vector>
+#include <initializer_list>
 #include<cassert>
 #include"dense_view.h"
 
@@ -29,6 +30,12 @@ public:
     
     Dense(size_t rows, size_t cols, const T& init):
         _rows(rows), _cols(cols), _size(rows*cols), _data(rows*cols, init){}
+
+    Dense(size_t rows, size_t cols, std::initializer_list<T> init):
+    _rows(rows), _cols(cols), _size(rows*cols), _data(init)
+    {
+        assert(init.size() == rows * cols && "Initializer size must match rows*cols");
+    }
     
     [[nodiscard]] T& operator()(size_t i, size_t j) noexcept {
         assert(i<_rows && j<_cols);
