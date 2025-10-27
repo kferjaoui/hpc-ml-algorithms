@@ -1,66 +1,101 @@
 #pragma once
-#include<array>
-#include<cassert>
+#include <array>
+#include <cassert>
+#include <cstdint>
+#include "types.h"
 
-namespace mx
-{
+namespace mx {
     
 template<typename T>
-class DenseView{
-        size_t _rows{0};
-        size_t _cols{0};
-        size_t _size{0};
-        std::array<size_t, 2> _strides{0,0};
-        T* _buffer{nullptr};
+class DenseView {
+    index_t _rows{0};
+    index_t _cols{0};
+    index_t _size{0};
+    std::array<index_t, 2> _strides{0, 0};
+    T* _buffer{nullptr};
 
-    public:
-        DenseView() = default;
+public:
+    DenseView() = default;
 
-        // Assumes contiguous and row-major
-        DenseView(T* ptr, size_t rows, size_t cols): 
-            _buffer(ptr), _rows(rows), _cols(cols), _size{rows*cols}, _strides{_cols, 1}{
-        }
+    // Contiguous row-major layout (standard)
+    DenseView(T* ptr, index_t rows, index_t cols): 
+        _buffer(ptr), _rows(rows), _cols(cols), _size(rows*cols), _strides{cols, 1} {
+        assert(rows >= 0 && cols >= 0);
+        assert(ptr != nullptr || (rows == 0 && cols == 0));
+    }
 
-        // Assumes contiguous
-        DenseView(T* ptr, size_t rows, size_t cols, size_t row_strides, size_t col_strides): 
-            _buffer(ptr), _rows(rows), _cols(cols), _size(rows*cols), _strides{row_strides, col_strides} {} 
+    // General strided layout
+    DenseView(T* ptr, index_t rows, index_t cols, index_t row_stride, index_t col_stride): 
+        _buffer(ptr), _rows(rows), _cols(cols), _size(rows*cols), 
+        _strides{row_stride, col_stride} {
+        assert(rows >= 0 && cols >= 0);
+        assert(row_stride >= 0 && col_stride >= 0);
+        assert(ptr != nullptr || (rows == 0 && cols == 0));
+    }
 
-        T& operator()(size_t i, size_t j) noexcept{
-            assert(i<_rows && j<_cols);
-            return _buffer[_strides[1] * j + _strides[0] * i];
-        }
+    T& operator()(index_t i, index_t j) noexcept {
+        assert(i >= 0 && i < _rows && j >= 0 && j < _cols);
+        return _buffer[_strides[0] * i + _strides[1] * j];
+    }
 
-        const T& operator()(size_t i, size_t j) const noexcept{
-            assert(i<_rows && j<_cols);
-            return _buffer[_strides[1] * j + _strides[0] * i];
-        }
+    const T& operator()(index_t i, index_t j) const noexcept {
+        assert(i >= 0 && i < _rows && j >= 0 && j < _cols);
+        return _buffer[_strides[0] * i + _strides[1] * j];
+    }
 
-        // subview needs to keep the strides of the parent view
-        DenseView subview(size_t i0, size_t j0, size_t n_rows, size_t n_cols) const noexcept{
-            assert( (i0 + n_rows) <= _rows && (j0 + n_cols) <= _cols );
-            return DenseView(_buffer + _strides[1] * j0 + _strides[0] * i0, n_rows, n_cols, _strides[0], _strides[1]); 
-        }
-        
-        // transposed view needs to swap the strides
-        DenseView transposed() const noexcept { return DenseView(_buffer, _cols, _rows, _strides[1], _strides[0]); }
+    // Create subview maintaining parent strides
+    DenseView subview(index_t i0, index_t j0, index_t n_rows, index_t n_cols) const noexcept {
+        assert(i0 >= 0 && j0 >= 0);
+        assert(i0 + n_rows <= _rows && j0 + n_cols <= _cols);
+        return DenseView(_buffer + _strides[0] * i0 + _strides[1] * j0, 
+                        n_rows, n_cols, _strides[0], _strides[1]); 
+    }
+    
+    // Transposed view (swap dimensions and strides)
+    DenseView transposed() const noexcept { 
+        return DenseView(_buffer, _cols, _rows, _strides[1], _strides[0]); 
+    }
 
-        [[nodiscard]] size_t rows() const noexcept {return _rows;}
-        [[nodiscard]] size_t cols() const noexcept {return _cols;}
-        [[nodiscard]] size_t size() const noexcept {return _size;}
-        [[nodiscard]] size_t row_stride() const noexcept {return _strides[0];}
-        [[nodiscard]] size_t col_stride() const noexcept {return _strides[1];}
+    // Accessors
+    [[nodiscard]] index_t rows() const noexcept { return _rows; }
+    [[nodiscard]] index_t cols() const noexcept { return _cols; }
+    [[nodiscard]] index_t size() const noexcept { return _size; }
+    [[nodiscard]] index_t row_stride() const noexcept { return _strides[0]; }
+    [[nodiscard]] index_t col_stride() const noexcept { return _strides[1]; }
+    
+    // Leading dimension
+    // For row-major: LDA = row_stride
+    // For col-major: LDA = col_stride
+    [[nodiscard]] index_t leading_dim() const noexcept { 
+        return _strides[0];  // Row-major assumption
+    }
 
-        // Assumes contiguous views; TODO: Generalize
-        T*       begin() noexcept { return _buffer; }
-        const T* begin() const noexcept { return _buffer; }
+    // Direct buffer access
+    T*       data() noexcept       { return _buffer; }
+    const T* data() const noexcept { return _buffer; }
 
-        T*       at(size_t i, size_t j) noexcept       { return _buffer + _strides[1] * j + _strides[0] *i; }
-        const T* at(size_t i, size_t j) const noexcept { return _buffer + _strides[1] * j + _strides[0] *i; }
-        
-        T*       end() noexcept { return _buffer + _size; }
-        const T* end() const noexcept { return _buffer + _size; }
+    // Iterator support (only valid for contiguous views)
+    T*       begin() noexcept { return _buffer; }
+    const T* begin() const noexcept { return _buffer; }
+    
+    T*       end() noexcept { return _buffer + _size; }
+    const T* end() const noexcept { return _buffer + _size; }
 
+    // Element pointer access
+    T* at(index_t i, index_t j) noexcept {
+        assert(i >= 0 && i < _rows && j >= 0 && j < _cols);
+        return _buffer + _strides[0] * i + _strides[1] * j;
+    }
+    
+    const T* at(index_t i, index_t j) const noexcept {
+        assert(i >= 0 && i < _rows && j >= 0 && j < _cols);
+        return _buffer + _strides[0] * i + _strides[1] * j;
+    }
+
+    // Check if view is contiguous in memory
+    [[nodiscard]] bool is_contiguous() const noexcept {
+        return (_strides[0] == _cols && _strides[1] == 1);  // Row-major contiguous
+    }
 };
 
 }
-
