@@ -13,6 +13,12 @@ void row_swap_full(DenseView<T> A, index_t i, index_t j) noexcept {
     }
 }
 
+// Permute the Right Hand Side (RHS): B = P * B using first Kp pivots (0-based)
+// TODO: Beware for benching against LAPACK which is 1-based
+template<typename T>
+void apply_pivots_to_rhs(DenseView<T> B, const std::vector<index_t>& piv, index_t Kp){
+    for(index_t k=0; k<Kp; k++) row_swap_full(B, k, piv[k]);
+}
 
 
 }

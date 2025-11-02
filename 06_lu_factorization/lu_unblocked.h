@@ -39,7 +39,7 @@ LUInfo lu_factor_unblocked(DenseView<T> LU, std::vector<index_t>& piv){
         // 2. swap full rows
         if (i_pivot != k) row_swap_full(LU, k, i_pivot);
 
-        // 3. guard against zero/near-zero pivot
+        // 3. guard against zero; TODO: near-zero pivot
         const T akk = LU(k,k);
         if (akk == T(0)) {
             info.status = LUStatus::SINGULAR;  // Singular matrix at column k
@@ -62,7 +62,6 @@ LUInfo lu_factor_unblocked(DenseView<T> LU, std::vector<index_t>& piv){
     }
 
     return info;
-
 
 }
 
