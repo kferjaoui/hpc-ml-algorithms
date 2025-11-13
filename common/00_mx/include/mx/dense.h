@@ -6,6 +6,7 @@
 #include "dense_view.h"
 #include "types.h"
 
+#include <Eigen/Dense>
 
 namespace mx {
 
@@ -45,7 +46,7 @@ public:
         assert(static_cast<index_t>(init.size()) == rows * cols && 
                "Initializer size must match rows*cols");
     }
-    
+
     [[nodiscard]] T& operator()(index_t i, index_t j) noexcept {
         assert(i >= 0 && i < _rows && j >= 0 && j < _cols);
         return _data[rm_idx(i,j)];
@@ -87,6 +88,14 @@ public:
     // Element pointer access
     T*       at(index_t i, index_t j) noexcept       { return _data.data() + rm_idx(i,j); }
     const T* at(index_t i, index_t j) const noexcept { return _data.data() + rm_idx(i,j); }
+
+    // MX -> Eigen conversion
+    auto to_eigen() const {
+        Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> eigenMatrix(_rows, _cols);
+        std::copy(_data.begin(), _data.end(), eigenMatrix.data());
+        return eigenMatrix;
+    }
+
 };
 
 }
