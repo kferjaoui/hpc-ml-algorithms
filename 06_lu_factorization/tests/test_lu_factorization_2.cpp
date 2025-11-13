@@ -13,6 +13,9 @@ using VectorXi = Eigen::VectorXi;
 
 int main(){
     // B is a singular matrix i.e. rank deficient
+    // N.B: 
+    // In this example, I have tested with non-owning views (DenseView),
+    // instead of buffer owning (Dense) types for validaiton purposes.
     // =================== MX ====================
     mx::Dense<double> B(3, 3, {1, 2, 3, 2, 4, 6, 1, 0, 1});
     mx::DenseView<double> LU_mx = B.view();
@@ -45,8 +48,9 @@ int main(){
     auto U_mx_eigen = U_mx.to_eigen();
 
     // =================== EIGEN ====================
-    Matrix B_eigen = B.to_eigen();
-    std::cout << "Eigen::Original matrix B:\n" << B_eigen << std::endl;
+    const auto B_view = B.view();
+    Matrix B_eigen = B_view.to_eigen();
+    std::cout << "Eigen::Original matrix B_eigen:\n" << B_eigen << std::endl;
 
     // LU partial pivoting with Eigen (row-major)
     Eigen::PartialPivLU<Matrix> lu_partial(B_eigen);
@@ -74,14 +78,14 @@ int main(){
     std::cout << "‖L_MX - L_Eigen‖_F = " << L_diff << "\n";
     std::cout << "‖U_MX - U_Eigen‖_F = " << U_diff << "\n";
 
-    // Reconstruct PA and compare to LU
+    // Reconstruct PB and compare to LU
     Matrix PB_eigen = lu_partial.permutationP() * B_eigen;
     Matrix LUtogether = L_eigen * U_eigen;
 
-    std::cout << "Eigen::Permuted matrix PA:\n" << PB_eigen << "\n";
+    std::cout << "Eigen::Permuted matrix PB:\n" << PB_eigen << "\n";
     std::cout << "Eigen::Reconstructed L*U:\n" << LUtogether << "\n";
 
     // Norm of the mismatch
     double error_norm = (PB_eigen - LUtogether).norm();
-    std::cout << "Eigen::‖PA - LU‖_F = " << error_norm << "\n";
+    std::cout << "Eigen::‖PB - LU‖_F = " << error_norm << "\n";
 }
